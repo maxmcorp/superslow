@@ -20,8 +20,11 @@ const TRACK_SECONDS = 120;
 // Done reacts the moment the finger lands, so the rest of that tap would hit the result
 // screen's buttons. Taps there are ignored for this long.
 const TAP_GUARD_MS = 700;
-// The select option that opens the new-exercise form.
+// The select options that open the new-exercise and new-group forms, and the one that
+// lists every exercise.
 const NEW_EXERCISE = '\u0000new';
+const NEW_GROUP = '\u0000new-group';
+const ALL = '\u0000all';
 
 const VERDICT = { heavy: 'Too heavy', good: 'Good', light: 'Too light' };
 const ADVICE = { heavy: 'Go lighter next time.', good: 'Keep this weight.', light: 'Go heavier next time.' };
@@ -40,6 +43,8 @@ let run = null;
 let savedSet = null;
 let last = DEFAULT_LAST_CALLOUT;
 let tapsAllowedAt = 0;
+// The start screen's group: a group's name, or ALL.
+let group = ALL;
 let historyExercise = null;
 
 // Formatting
@@ -72,6 +77,16 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
+// The local calendar day, as 2026-10-20.
+function dayKey(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function doneToday(exercise) {
+  const previous = store.lastSet(exercise);
+  return Boolean(previous) && dayKey(new Date(previous.at)) === dayKey(new Date());
+}
+
 // Screens
 
 function show(name) {
@@ -100,19 +115,61 @@ function setText(id, text) {
 // Start screen
 
 function renderStart({ fillWeight }) {
-  const exercises = store.exercises;
-  const current = store.lastExercise ?? exercises[0] ?? null;
-  const select = $('exercise');
-  select.replaceChildren(
-    ...exercises.map((name) => new Option(name, name)),
+  const current = store.lastExercise ?? store.exercises[0] ?? null;
+  group = store.lastGroup ?? ALL;
+  // An exercise can be in several groups: stay in the last one picked if it has the exercise.
+  if (current && !groupExercises().includes(current)) group = store.groupsOf(current)[0] ?? ALL;
+  renderGroups();
+  renderExercises(current);
+  if (fillWeight) fillWeightFor(current);
+  renderLast(current);
+}
+
+function groupExercises() {
+  return group === ALL ? store.exercises : store.exercisesIn(group);
+}
+
+// The first exercise in the start screen's group not done today, or null if all are.
+function nextExercise() {
+  return groupExercises().find((name) => !doneToday(name)) ?? null;
+}
+
+function renderGroups() {
+  $('group').replaceChildren(
+    ...store.groups.map((name) => new Option(name, name)),
+    new Option('All exercises', ALL),
+    new Option('+ Add group', NEW_GROUP),
+  );
+  $('group').value = group;
+  $('group-field').hidden = false;
+  $('new-group').hidden = true;
+}
+
+// Exercises done today are ticked. A group without exercises opens the new-exercise form,
+// which can also remove the group.
+function renderExercises(current) {
+  const exercises = groupExercises();
+  $('exercise').replaceChildren(
+    ...exercises.map((name) => new Option(doneToday(name) ? `${name} ✓` : name, name)),
     new Option('+ Add exercise', NEW_EXERCISE),
   );
-  if (current) select.value = current;
+  if (current) $('exercise').value = current;
   $('exercise-field').hidden = exercises.length === 0;
   $('new-exercise').hidden = exercises.length > 0;
   $('new-exercise-cancel').hidden = exercises.length === 0;
-  if (fillWeight) fillWeightFor(current);
-  renderLast(current);
+  $('remove-group').hidden = exercises.length > 0 || group === ALL;
+}
+
+// Shows a group and selects its first exercise not done today.
+function chooseGroup(name) {
+  group = name;
+  store.selectGroup(name === ALL ? null : name);
+  const first = nextExercise() ?? groupExercises()[0] ?? null;
+  if (first) store.selectExercise(first);
+  renderGroups();
+  renderExercises(first);
+  fillWeightFor(first);
+  renderLast(first);
 }
 
 function fillWeightFor(exercise) {
@@ -138,20 +195,60 @@ function showMessage(text) {
   $('start-message').textContent = text;
 }
 
+// Adds the exercise typed into the new-exercise form, also to the start screen's group, and
+// selects it. An existing exercise keeps its other groups. Returns its name, or null if none was typed.
+function addTypedExercise() {
+  const name = store.addExercise($('new-exercise-name').value);
+  if (!name) return null;
+  if (group !== ALL) store.addToGroup(name, group);
+  $('new-exercise-name').value = '';
+  store.selectExercise(name);
+  return name;
+}
+
 // The exercise to start: the selected one, or the one typed into the new-exercise form.
 function currentExercise() {
+  if (!$('new-group').hidden) return null;
   if (!$('new-exercise').hidden) {
-    const name = store.addExercise($('new-exercise-name').value);
-    if (name) {
-      $('new-exercise-name').value = '';
-      store.selectExercise(name);
-      renderStart({ fillWeight: false });
-    }
+    const name = addTypedExercise();
+    if (name) renderStart({ fillWeight: false });
     return name;
   }
   const value = $('exercise').value;
   return value && value !== NEW_EXERCISE ? value : null;
 }
+
+$('group').addEventListener('change', (event) => {
+  showMessage('');
+  if (event.target.value !== NEW_GROUP) {
+    chooseGroup(event.target.value);
+    return;
+  }
+  $('group-field').hidden = true;
+  $('exercise-field').hidden = true;
+  $('new-exercise').hidden = true;
+  $('new-group').hidden = false;
+  $('new-group-name').focus();
+});
+
+$('new-group').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const name = store.addGroup($('new-group-name').value);
+  if (!name) {
+    showMessage('Type a name for the group.');
+    return;
+  }
+  $('new-group-name').value = '';
+  $('new-group-name').blur();
+  showMessage('');
+  chooseGroup(name);
+});
+
+$('new-group-cancel').addEventListener('click', () => {
+  $('new-group-name').value = '';
+  showMessage('');
+  renderStart({ fillWeight: false });
+});
 
 $('exercise').addEventListener('change', (event) => {
   const value = event.target.value;
@@ -169,14 +266,11 @@ $('exercise').addEventListener('change', (event) => {
 
 $('new-exercise').addEventListener('submit', (event) => {
   event.preventDefault();
-  const name = store.addExercise($('new-exercise-name').value);
-  if (!name) {
+  if (!addTypedExercise()) {
     showMessage('Type a name for the exercise.');
     return;
   }
-  $('new-exercise-name').value = '';
   $('new-exercise-name').blur();
-  store.selectExercise(name);
   showMessage('');
   renderStart({ fillWeight: true });
 });
@@ -185,6 +279,13 @@ $('new-exercise-cancel').addEventListener('click', () => {
   $('new-exercise-name').value = '';
   showMessage('');
   renderStart({ fillWeight: false });
+});
+
+$('remove-group').addEventListener('click', () => {
+  store.removeGroup(group);
+  $('new-exercise-name').value = '';
+  showMessage('');
+  renderStart({ fillWeight: true });
 });
 
 $('weight').addEventListener('focus', (event) => event.target.select());
@@ -199,7 +300,7 @@ $('open-history').addEventListener('click', () => openHistory(store.lastExercise
 $('start-button').addEventListener('click', () => {
   const exercise = currentExercise();
   if (!exercise) {
-    showMessage('Add an exercise first.');
+    showMessage($('new-group').hidden ? 'Add an exercise first.' : 'Add the group first, or tap Cancel.');
     return;
   }
   const weightKg = parseWeight($('weight').value);
@@ -285,9 +386,12 @@ function renderResult(set) {
   $('result-advice').textContent = ADVICE[result];
 }
 
+// Moves on to the group's next exercise not done today; any other can still be picked.
 $('next-button').addEventListener(
   'click',
   guarded(() => {
+    const next = nextExercise();
+    if (next) store.selectExercise(next);
     renderStart({ fillWeight: true });
     show('start');
   }),
@@ -318,16 +422,33 @@ function openHistory(exercise) {
   show('history');
 }
 
+// Every exercise, under its group's name once there are groups.
+function exerciseOptions() {
+  const options = (names) => names.map((name) => new Option(name, name));
+  const groups = store.groups;
+  if (!groups.length) return options(store.exercises);
+  return [...groups, null]
+    .map((name) => {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = name ?? 'No group';
+      optgroup.append(...options(store.exercisesIn(name)));
+      return optgroup;
+    })
+    .filter((optgroup) => optgroup.children.length > 0);
+}
+
 function renderHistory() {
   const select = $('history-exercise');
-  select.replaceChildren(...store.exercises.map((name) => new Option(name, name)));
+  select.replaceChildren(...exerciseOptions());
   if (historyExercise) select.value = historyExercise;
+  $('history-group-list').replaceChildren(...store.groups.map(groupCheck));
+  $('history-groups').hidden = !historyExercise || store.groups.length === 0;
   const sets = historyExercise ? store.setsFor(historyExercise) : [];
 
   const days = new Map();
   for (const set of sets) {
     const when = new Date(set.at);
-    const key = `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
+    const key = dayKey(when);
     if (!days.has(key)) days.set(key, { label: dayFormat.format(when), sets: [] });
     days.get(key).sets.push(set);
   }
@@ -346,6 +467,22 @@ function renderHistory() {
   );
   $('history-empty').hidden = sets.length > 0;
   $('remove-exercise').hidden = !historyExercise || sets.length > 0;
+}
+
+// A checkbox that puts the shown exercise in a group or takes it out.
+function groupCheck(name) {
+  const label = document.createElement('label');
+  label.className = 'check';
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.checked = store.groupsOf(historyExercise).includes(name);
+  box.addEventListener('change', () => {
+    if (box.checked) store.addToGroup(historyExercise, name);
+    else store.removeFromGroup(historyExercise, name);
+    renderHistory();
+  });
+  label.append(box, name);
+  return label;
 }
 
 function historyEntry(set) {
@@ -402,8 +539,7 @@ $('history-back').addEventListener('click', () => {
 });
 
 function today() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return dayKey(new Date());
 }
 
 function backupStatus(text) {

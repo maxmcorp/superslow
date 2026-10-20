@@ -5,11 +5,12 @@ A set timer and training log for super-slow strength training, as an iPhone home
 You don't count reps. You note the weight and how long you can keep moving it:
 under 60 s the weight is too heavy, over 90 s it is too light.
 
+- Pick a group, then an exercise in it. Groups are your own (Push, Pull, Legs, Upper, Full body …), an exercise can be in several, and **All exercises** lists every one. Exercises done today are ticked, and the next one not done yet is picked for you; take them in any order.
 - Tap **Start**. A voice counts down from 10, and you start lifting on "zero".
 - The time is called out every 10 s up to 60, then every 5 s (65, 70, 75 …).
 - The screen stays on during the countdown and the set.
 - Tap anywhere on the big **Done** slab when you finish. The set is saved with its weight, time and verdict.
-- **History** shows each exercise's sets by day. You can export them as CSV, or back up and restore them as JSON.
+- **History** shows each exercise's sets by day, and the groups it is in, which you can change there. You can export the sets as CSV, or back up and restore them as JSON.
 
 ## Install
 

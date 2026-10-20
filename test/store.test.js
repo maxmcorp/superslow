@@ -112,3 +112,81 @@ test('CSV has a header and one row per set, oldest first, with quoted names', ()
   assert.match(lines[1], /,"Press, seated",,55,heavy$/);
   assert.match(lines[2], /,"Press, seated",20,95,light$/);
 });
+
+test('an exercise can be in several groups, and the rest are in no group', () => {
+  const store = createStore(memoryStorage());
+  assert.equal(store.addGroup(' Push '), 'Push');
+  assert.equal(store.addGroup('push'), 'Push');
+  assert.equal(store.addGroup('  '), null);
+  store.addGroup('Pull');
+  store.addGroup('Legs');
+  for (const name of ['Chest press', 'Deadlift', 'Calf raise']) store.addExercise(name);
+  store.addToGroup('Chest press', 'Push');
+  store.addToGroup('Deadlift', 'Pull');
+  store.addToGroup('Deadlift', 'Legs');
+  store.addToGroup('Deadlift', 'Legs');
+  assert.deepEqual(store.groups, ['Push', 'Pull', 'Legs']);
+  assert.deepEqual(store.exercisesIn('Pull'), ['Deadlift']);
+  assert.deepEqual(store.exercisesIn('Legs'), ['Deadlift']);
+  assert.deepEqual(store.groupsOf('Deadlift'), ['Pull', 'Legs']);
+  assert.deepEqual(store.exercisesIn(null), ['Calf raise']);
+  store.removeFromGroup('Deadlift', 'Pull');
+  assert.deepEqual(store.groupsOf('Deadlift'), ['Legs']);
+  store.removeFromGroup('Deadlift', 'Legs');
+  assert.deepEqual(store.exercisesIn(null), ['Deadlift', 'Calf raise']);
+});
+
+test('the last group picked is remembered until it is removed', () => {
+  const storage = memoryStorage();
+  const store = createStore(storage);
+  assert.equal(store.lastGroup, null);
+  store.addGroup('Legs');
+  store.selectGroup('Legs');
+  assert.equal(createStore(storage).lastGroup, 'Legs');
+  store.removeGroup('Legs');
+  assert.equal(store.lastGroup, null);
+});
+
+test('only an empty group can be removed, and a removed exercise leaves its groups', () => {
+  const store = createStore(memoryStorage());
+  store.addGroup('Legs');
+  store.addExercise('Leg press');
+  store.addToGroup('Leg press', 'Legs');
+  assert.equal(store.removeGroup('Legs'), false);
+  store.removeExercise('Leg press');
+  assert.deepEqual(store.exercisesIn('Legs'), []);
+  assert.equal(store.removeGroup('Legs'), true);
+  assert.deepEqual(store.groups, []);
+});
+
+test('a log saved before groups loads with its exercises in no group', () => {
+  const saved = JSON.stringify({ exercises: ['Row'], sets: [], lastExercise: 'Row' });
+  const store = createStore(memoryStorage({ 'superslow.v1': saved }));
+  assert.deepEqual(store.groups, []);
+  assert.deepEqual(store.exercisesIn(null), ['Row']);
+  store.addGroup('Pull');
+  store.addToGroup('Row', 'Pull');
+  assert.deepEqual(store.exercisesIn('Pull'), ['Row']);
+});
+
+test('a backup adds its groups and their exercises to the ones already here', () => {
+  const source = createStore(memoryStorage());
+  source.addGroup('Pull');
+  source.addGroup('Legs');
+  for (const name of ['Row', 'Deadlift']) source.addExercise(name);
+  source.addToGroup('Row', 'Pull');
+  source.addToGroup('Deadlift', 'Pull');
+  source.addToGroup('Deadlift', 'Legs');
+  const backup = source.toJSON();
+
+  const target = createStore(memoryStorage());
+  target.addGroup('pull');
+  target.addExercise('deadlift');
+  target.addToGroup('deadlift', 'pull');
+  target.importJSON(backup);
+  assert.deepEqual(target.groups, ['pull', 'Legs']);
+  assert.deepEqual(target.exercisesIn('pull'), ['deadlift', 'Row']);
+  assert.deepEqual(target.exercisesIn('Legs'), ['deadlift']);
+  assert.deepEqual(target.importJSON(backup), { added: 0 });
+  assert.deepEqual(target.exercisesIn('pull'), ['deadlift', 'Row']);
+});

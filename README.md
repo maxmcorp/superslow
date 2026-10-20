@@ -11,15 +11,20 @@ under 60 s the weight is too heavy, over 90 s it is too light.
 - Tap anywhere on the big **Done** slab when you finish. The set is saved with its weight, time and verdict.
 - **History** shows each exercise's sets by day. You can export them as CSV, or back up and restore them as JSON.
 
-## Install on the iPhone
+## Install
 
-1. Open `https://maxmcorp.github.io/superslow/` in Safari.
-2. Tap Share, then **Add to Home Screen**.
-3. Open Superslow from the home-screen icon. After the first launch it works offline.
+Scan the code or open `https://maxmcorp.github.io/superslow/`:
 
-Callouts play over your music, so the ring/silent switch must be on ring. Keeping the screen on needs iOS 18.4 or later. If the app can't keep it on, a yellow banner says so.
+<img src="qr.png" alt="QR code for https://maxmcorp.github.io/superslow/" width="200">
 
-Your log lives on the phone, in the home-screen app's own storage. Use **Back up** now and then and keep the file in Files or iCloud Drive.
+- **iPhone:** in Safari, tap Share, then **Add to Home Screen**.
+- **Android:** in Chrome, open the ⋮ menu and choose **Install app** (or **Add to Home screen**).
+
+Open Superslow from the home-screen icon. After the first launch it works offline.
+
+Callouts play over your music. On an iPhone the ring/silent switch must be on ring; on Android they follow the media volume. Keeping the screen on needs iOS 18.4 or later on an iPhone. If the app can't keep it on, a yellow banner says so.
+
+Each phone keeps its own log, in the home-screen app's own storage. Use **Back up** now and then and keep the file somewhere safe (Files, iCloud Drive, Google Drive).
 
 ## Sounds
 
@@ -59,5 +64,6 @@ npm run serve          # http://localhost:8000; no service worker on http, so ed
 | `sw.js` | Offline cache |
 | `tools/build.mjs` | Run before each deploy |
 | `tools/make-icons.py` | Draws the app icons |
+| `tools/make-qr.py` | Writes `qr.png` for the app's address |
 
 Fonts: Barlow and Barlow Condensed by Jeremy Tribby, under the SIL Open Font License (`fonts/OFL.txt`).

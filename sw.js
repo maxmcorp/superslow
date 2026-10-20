@@ -1,7 +1,7 @@
 // Keeps the app working offline: everything is cached on install and served from the cache.
 // tools/build.mjs stamps VERSION with a hash of the app, so each deploy installs fresh files.
 
-const VERSION = '1396663bffe8';
+const VERSION = 'b1fe4be7a251';
 const CACHE = `superslow-${VERSION}`;
 const SHELL = [
   './',
@@ -16,6 +16,7 @@ const SHELL = [
   'icons/icon-180.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
+  'icons/icon-maskable-512.png',
   'fonts/barlow-condensed-600.woff2',
   'fonts/barlow-400.woff2',
   'fonts/barlow-600.woff2',

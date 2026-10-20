@@ -455,6 +455,11 @@ $('import-json').addEventListener('change', async (event) => {
 
 // Startup
 
+// iPhones (and iPads, which report themselves as Macs with touch) mute the callouts
+// with the ring/silent switch; elsewhere it is the media volume.
+const isApple = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+if (isApple) $('volume-note').textContent = 'Ring switch on, or the callouts are silent.';
+
 renderStart({ fillWeight: true });
 show('start');
 

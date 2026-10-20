@@ -1,0 +1,602 @@
+/* Superslow: read at arm's length, tapped in a hurry.
+   Colours come from the gym: rubber floor, chalk, and the competition plate colours
+   (red 25 kg, green 10 kg, yellow 15 kg, blue 20 kg) for too heavy / good / too light. */
+
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: url('fonts/barlow-condensed-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Barlow';
+  src: url('fonts/barlow-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow';
+  src: url('fonts/barlow-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  --floor: #232427;
+  --floor-raised: #303237;
+  --line: #4a4c52;
+  --chalk: #efeee8;
+  --chalk-dim: #a9aaa4;
+  --plate-red: #c8222a;
+  --plate-green: #177a45;
+  --plate-yellow: #f1c232;
+  --plate-blue: #1f5fbf;
+
+  --display: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --text: 'Barlow', system-ui, -apple-system, sans-serif;
+
+  --gutter: 16px;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--floor);
+  color: var(--chalk);
+  font: 400 18px/1.4 var(--text);
+  -webkit-text-size-adjust: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+p {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+  touch-action: manipulation;
+}
+
+input {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+:focus-visible {
+  outline: 3px solid var(--plate-yellow);
+  outline-offset: 3px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Screens */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + var(--gutter))
+    calc(env(safe-area-inset-bottom) + var(--gutter)) calc(env(safe-area-inset-left) + var(--gutter));
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  margin-bottom: 20px;
+}
+
+.brand {
+  margin: 0;
+  font: 600 30px/1 var(--display);
+  letter-spacing: 0.01em;
+}
+
+.history .bar {
+  justify-content: flex-start;
+  gap: 20px;
+}
+
+.huge {
+  font-family: var(--display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.context {
+  color: var(--chalk-dim);
+  font-size: 20px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* Buttons */
+
+.start-button {
+  min-height: 136px;
+  margin-top: auto;
+  border: 0;
+  border-radius: 22px;
+  background: var(--plate-blue);
+  color: var(--chalk);
+  font: 600 64px/1 var(--display);
+  cursor: pointer;
+}
+
+.start-button:active {
+  filter: brightness(0.9);
+}
+
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 0 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.text-button {
+  min-height: 48px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--chalk-dim);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.small-button {
+  flex: 0 0 auto;
+  min-width: 84px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--chalk);
+  color: var(--floor);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.row > * {
+  flex: 1;
+}
+
+/* Start */
+
+.fields {
+  display: grid;
+  gap: 18px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label,
+.backup-title {
+  color: var(--chalk-dim);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+select,
+input[type='text'] {
+  width: 100%;
+  min-height: 60px;
+  padding: 0 16px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--floor-raised);
+  font-size: 22px;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 48px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10' viewBox='0 0 16 10'%3E%3Cpath d='M1 1l7 7 7-7' fill='none' stroke='%23efeee8' stroke-width='2.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 18px center;
+}
+
+.inline {
+  display: flex;
+  gap: 10px;
+}
+
+.new-exercise .text-button {
+  justify-self: start;
+}
+
+.weight {
+  position: relative;
+}
+
+.weight input {
+  min-height: 84px;
+  padding-right: 64px;
+  font: 600 56px/1 var(--display);
+  font-variant-numeric: tabular-nums;
+}
+
+.weight .unit {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--chalk-dim);
+  font-size: 22px;
+  pointer-events: none;
+}
+
+.last {
+  margin-top: 22px;
+  color: var(--chalk-dim);
+  font-size: 19px;
+}
+
+.last strong {
+  color: var(--chalk);
+  font-weight: 600;
+}
+
+.message {
+  min-height: 1.4em;
+  margin: 10px 0 14px;
+  color: var(--plate-yellow);
+  font-weight: 600;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.note {
+  margin-top: 12px;
+  color: var(--chalk-dim);
+  font-size: 15px;
+  text-align: center;
+}
+
+.banner {
+  position: fixed;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: calc(env(safe-area-inset-top) + 8px) var(--gutter) 10px;
+  background: var(--plate-yellow);
+  color: var(--floor);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Countdown */
+
+.countdown {
+  justify-content: space-between;
+}
+
+.countdown .huge {
+  font-size: min(80vw, 56dvh);
+}
+
+.cue {
+  color: var(--chalk-dim);
+  font-size: 22px;
+  text-align: center;
+}
+
+/* Set: the clock above, a Done slab filling the lower part of the screen. */
+
+.set {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
+  transition:
+    background-color 400ms,
+    color 400ms;
+}
+
+.clock {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  height: 38dvh;
+  padding-bottom: 28px;
+}
+
+.set .huge {
+  font-size: min(60vw, 27dvh);
+}
+
+body[data-zone='good'] .set {
+  background: var(--plate-green);
+}
+
+body[data-zone='light'] .set {
+  background: var(--plate-yellow);
+  color: var(--floor);
+}
+
+body[data-zone='good'] .set .context,
+body[data-zone='light'] .set .context {
+  color: inherit;
+}
+
+.track {
+  position: relative;
+  height: 10px;
+  margin: 0 6px;
+  border-radius: 5px;
+  background: rgba(239, 238, 232, 0.18);
+}
+
+/* 60 to 90 seconds on a 0 to 120 second track. */
+.track .window {
+  position: absolute;
+  left: 50%;
+  width: 25%;
+  height: 100%;
+  background: var(--plate-green);
+}
+
+body[data-zone='good'] .track .window {
+  background: rgba(239, 238, 232, 0.55);
+}
+
+body[data-zone='light'] .track {
+  background: rgba(35, 36, 39, 0.2);
+}
+
+body[data-zone='light'] .track .window {
+  background: rgba(35, 36, 39, 0.45);
+}
+
+.track .marker {
+  position: absolute;
+  top: -10px;
+  left: calc(var(--progress, 0) * 100%);
+  width: 6px;
+  height: 30px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: currentColor;
+}
+
+.track .tick {
+  position: absolute;
+  top: 16px;
+  transform: translateX(-50%);
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.tick-60 {
+  left: 50%;
+}
+
+.tick-90 {
+  left: 75%;
+}
+
+.done-button {
+  flex: 1;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 28px;
+  background: var(--chalk);
+  color: var(--floor);
+  font: 600 min(30vw, 120px) / 1 var(--display);
+  cursor: pointer;
+}
+
+.done-button:active {
+  filter: brightness(0.85);
+}
+
+/* Result: the whole screen takes the plate colour of the verdict. */
+
+.result {
+  gap: 12px;
+}
+
+body[data-verdict='heavy'] .result {
+  background: var(--plate-red);
+}
+
+body[data-verdict='good'] .result {
+  background: var(--plate-green);
+}
+
+body[data-verdict='light'] .result {
+  background: var(--plate-yellow);
+  color: var(--floor);
+}
+
+.result .context {
+  color: inherit;
+}
+
+.outcome {
+  display: grid;
+  flex: 1;
+  align-content: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.result .huge {
+  font-size: min(52vw, 30dvh);
+}
+
+.huge-unit {
+  margin-left: 0.04em;
+  font-size: 0.32em;
+  letter-spacing: 0;
+}
+
+.verdict {
+  font: 600 min(17vw, 80px) / 1 var(--display);
+}
+
+.advice {
+  font-size: 20px;
+}
+
+.result .start-button {
+  background: var(--chalk);
+  color: var(--floor);
+}
+
+.result .secondary-button {
+  border-color: currentColor;
+}
+
+/* History */
+
+.history .field {
+  margin-bottom: 18px;
+}
+
+.history-list {
+  display: grid;
+  gap: 18px;
+}
+
+.day h3 {
+  margin: 0 0 6px;
+  color: var(--chalk-dim);
+  font: 600 22px/1.2 var(--display);
+}
+
+.day ol {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 4.2em 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding-left: 14px;
+  border-left: 8px solid var(--chalk-dim);
+  border-radius: 6px;
+  background: var(--floor-raised);
+  font-variant-numeric: tabular-nums;
+}
+
+.entry.heavy {
+  border-left-color: var(--plate-red);
+}
+
+.entry.good {
+  border-left-color: var(--plate-green);
+}
+
+.entry.light {
+  border-left-color: var(--plate-yellow);
+}
+
+.entry .when {
+  color: var(--chalk-dim);
+}
+
+.entry .secs {
+  font: 600 28px/1 var(--display);
+}
+
+.entry .delete {
+  min-width: 56px;
+  min-height: 56px;
+  border: 0;
+  background: none;
+  color: var(--chalk-dim);
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.entry .delete.armed {
+  min-width: 84px;
+  border-radius: 0 6px 6px 0;
+  background: var(--plate-red);
+  color: var(--chalk);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.history #remove-exercise {
+  margin-top: 12px;
+}
+
+.backup {
+  margin-top: auto;
+  padding-top: 32px;
+}
+
+.backup-title {
+  margin-bottom: 8px;
+}
+
+.backup .row {
+  flex-wrap: wrap;
+}
+
+.backup .row > * {
+  flex: 1 1 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .set {
+    transition: none;
+  }
+}

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Superslow" />
+    <meta name="theme-color" content="#232427" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Superslow</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/icon-180.png" />
+    <link rel="icon" href="icons/icon-192.png" />
+    <link rel="preload" href="fonts/barlow-condensed-600.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body data-screen="start">
+    <p id="banner" class="banner" role="status" hidden></p>
+
+    <section id="screen-start" class="screen start">
+      <header class="bar">
+        <h1 class="brand">Superslow</h1>
+        <button id="open-history" class="text-button" type="button">History</button>
+      </header>
+
+      <div class="fields">
+        <div class="field" id="exercise-field">
+          <label for="exercise">Exercise</label>
+          <select id="exercise"></select>
+        </div>
+
+        <form id="new-exercise" class="field new-exercise" hidden>
+          <label for="new-exercise-name">New exercise</label>
+          <div class="inline">
+            <input id="new-exercise-name" type="text" placeholder="Leg press" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" />
+            <button class="small-button" type="submit">Add</button>
+          </div>
+          <button id="new-exercise-cancel" class="text-button" type="button">Cancel</button>
+        </form>
+
+        <div class="field">
+          <label for="weight">Weight</label>
+          <div class="weight">
+            <input id="weight" type="text" inputmode="decimal" autocomplete="off" placeholder="0" />
+            <span class="unit">kg</span>
+          </div>
+        </div>
+      </div>
+
+      <p id="last" class="last"></p>
+      <p id="start-message" class="message" role="status"></p>
+
+      <button id="start-button" class="start-button" type="button">Start</button>
+      <p class="note">Ring switch on, or the callouts are silent.</p>
+      <p id="sound-note" class="note" hidden></p>
+    </section>
+
+    <section id="screen-countdown" class="screen countdown" hidden>
+      <p id="countdown-context" class="context"></p>
+      <p id="countdown-number" class="huge" aria-live="off">10</p>
+      <p class="cue">Start lifting on zero</p>
+      <button id="cancel-button" class="secondary-button" type="button">Cancel</button>
+    </section>
+
+    <section id="screen-set" class="screen set" hidden>
+      <div class="clock">
+        <p id="set-context" class="context"></p>
+        <p id="set-seconds" class="huge">0</p>
+        <div class="track" aria-hidden="true">
+          <span class="window"></span>
+          <span id="marker" class="marker"></span>
+          <span class="tick tick-60">60</span>
+          <span class="tick tick-90">90</span>
+        </div>
+      </div>
+      <button id="done-button" class="done-button" type="button">Done</button>
+    </section>
+
+    <section id="screen-result" class="screen result" hidden>
+      <div class="outcome">
+        <p class="huge"><span id="result-seconds"></span><span class="huge-unit">s</span></p>
+        <p id="result-verdict" class="verdict"></p>
+        <p id="result-context" class="context"></p>
+        <p id="result-advice" class="advice"></p>
+      </div>
+      <button id="next-button" class="start-button" type="button">Next set</button>
+      <div class="row">
+        <button id="delete-button" class="secondary-button" type="button">Delete this set</button>
+        <button id="result-history" class="secondary-button" type="button">History</button>
+      </div>
+    </section>
+
+    <section id="screen-history" class="screen history" hidden>
+      <header class="bar">
+        <button id="history-back" class="text-button" type="button">Back</button>
+        <h2 class="brand">History</h2>
+      </header>
+      <div class="field">
+        <label for="history-exercise">Exercise</label>
+        <select id="history-exercise"></select>
+      </div>
+      <div id="history-list" class="history-list"></div>
+      <p id="history-empty" class="last" hidden>No sets yet for this exercise.</p>
+      <button id="remove-exercise" class="secondary-button" type="button" hidden>Remove this exercise</button>
+      <div class="backup">
+        <p class="backup-title">Backup</p>
+        <div class="row">
+          <button id="export-csv" class="secondary-button" type="button">Export CSV</button>
+          <button id="export-json" class="secondary-button" type="button">Back up</button>
+          <label class="secondary-button" for="import-json">Restore</label>
+          <input id="import-json" class="visually-hidden" type="file" accept=".json,application/json" />
+        </div>
+        <p id="backup-status" class="note" role="status"></p>
+      </div>
+    </section>
+  </body>
+</html>

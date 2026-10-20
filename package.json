@@ -1,0 +1,10 @@
+{
+  "name": "superslow",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "build": "node tools/build.mjs",
+    "serve": "python -m http.server 8000"
+  }
+}

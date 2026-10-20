@@ -111,6 +111,10 @@ export function createVoice(base = 'sounds/') {
       this.stop();
       let next = 0;
       const tick = () => {
+        // While the audio clock is stopped (just resumed, or the app is in the background),
+        // nothing is queued: it would play late, once the clock runs again. Anything that falls
+        // due meanwhile is skipped as too late.
+        if (ctx.state !== 'running') return;
         const elapsed = (performance.now() - zeroAt) / 1000;
         while (next < events.length && events[next].at <= elapsed + LOOKAHEAD) {
           const { at, n } = events[next++];

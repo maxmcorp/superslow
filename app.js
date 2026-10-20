@@ -20,10 +20,11 @@ const TRACK_SECONDS = 120;
 // Done reacts the moment the finger lands, so the rest of that tap would hit the result
 // screen's buttons. Taps there are ignored for this long.
 const TAP_GUARD_MS = 700;
-// The select options that open the new-exercise and new-group forms, and the one that
-// lists every exercise.
+// The select options that open the new-exercise, new-group and edit-group forms, and the
+// one that lists every exercise.
 const NEW_EXERCISE = '\u0000new';
 const NEW_GROUP = '\u0000new-group';
+const EDIT_GROUP = '\u0000edit-group';
 const ALL = '\u0000all';
 
 const VERDICT = { heavy: 'Too heavy', good: 'Good', light: 'Too light' };
@@ -46,6 +47,10 @@ let tapsAllowedAt = 0;
 // The start screen's group: a group's name, or ALL.
 let group = ALL;
 let historyExercise = null;
+// The exercise the weight field is for, so a weight is never carried over to another one.
+let weightExercise = null;
+// The day the start screen's ticks were drawn for.
+let tickedDay = null;
 
 // Formatting
 
@@ -112,6 +117,29 @@ function setText(id, text) {
   if (element.textContent !== String(text)) element.textContent = text;
 }
 
+// The first tap arms a delete button, showing armedText(), and a second tap within 3 s runs
+// the action. Returns a function that disarms it, for when what it would delete changes.
+function confirmTap(button, armedText, action) {
+  const text = button.textContent;
+  let timer = 0;
+  const disarm = () => {
+    clearTimeout(timer);
+    button.classList.remove('armed');
+    button.textContent = text;
+  };
+  button.addEventListener('click', () => {
+    if (!button.classList.contains('armed')) {
+      button.classList.add('armed');
+      button.textContent = armedText();
+      timer = setTimeout(disarm, 3000);
+      return;
+    }
+    disarm();
+    action();
+  });
+  return disarm;
+}
+
 // Start screen
 
 function renderStart({ fillWeight }) {
@@ -121,7 +149,7 @@ function renderStart({ fillWeight }) {
   if (current && !groupExercises().includes(current)) group = store.groupsOf(current)[0] ?? ALL;
   renderGroups();
   renderExercises(current);
-  if (fillWeight) fillWeightFor(current);
+  if (fillWeight || current !== weightExercise) fillWeightFor(current);
   renderLast(current);
 }
 
@@ -139,25 +167,34 @@ function renderGroups() {
     ...store.groups.map((name) => new Option(name, name)),
     new Option('All exercises', ALL),
     new Option('+ Add group', NEW_GROUP),
+    ...(group === ALL ? [] : [new Option(`Rename or delete ${group}`, EDIT_GROUP)]),
   );
   $('group').value = group;
   $('group-field').hidden = false;
   $('new-group').hidden = true;
+  $('edit-group').hidden = true;
 }
 
-// Exercises done today are ticked. A group without exercises opens the new-exercise form,
-// which can also remove the group.
+// Shows the new-group or edit-group form in place of the group and exercise fields.
+function openGroupForm(form) {
+  for (const id of ['group-field', 'exercise-field', 'new-exercise', 'new-group', 'edit-group']) {
+    $(id).hidden = id !== form;
+  }
+  $(`${form}-name`).focus();
+}
+
+// Exercises done today are ticked. A group without exercises opens the new-exercise form.
 function renderExercises(current) {
   const exercises = groupExercises();
   $('exercise').replaceChildren(
     ...exercises.map((name) => new Option(doneToday(name) ? `${name} ✓` : name, name)),
     new Option('+ Add exercise', NEW_EXERCISE),
   );
+  tickedDay = dayKey(new Date());
   if (current) $('exercise').value = current;
   $('exercise-field').hidden = exercises.length === 0;
   $('new-exercise').hidden = exercises.length > 0;
   $('new-exercise-cancel').hidden = exercises.length === 0;
-  $('remove-group').hidden = exercises.length > 0 || group === ALL;
 }
 
 // Shows a group and selects its first exercise not done today.
@@ -173,6 +210,7 @@ function chooseGroup(name) {
 }
 
 function fillWeightFor(exercise) {
+  weightExercise = exercise;
   const weightKg = exercise ? store.lastSet(exercise)?.weightKg : null;
   $('weight').value = weightKg === null || weightKg === undefined ? '' : kgFormat.format(weightKg);
 }
@@ -203,12 +241,16 @@ function addTypedExercise() {
   if (group !== ALL) store.addToGroup(name, group);
   $('new-exercise-name').value = '';
   store.selectExercise(name);
+  // The form starts with an empty weight, so one typed there is for this exercise. Without one,
+  // an existing exercise gets its last weight.
+  if ($('weight').value.trim()) weightExercise = name;
+  else fillWeightFor(name);
   return name;
 }
 
 // The exercise to start: the selected one, or the one typed into the new-exercise form.
 function currentExercise() {
-  if (!$('new-group').hidden) return null;
+  if (groupFormOpen()) return null;
   if (!$('new-exercise').hidden) {
     const name = addTypedExercise();
     if (name) renderStart({ fillWeight: false });
@@ -218,17 +260,22 @@ function currentExercise() {
   return value && value !== NEW_EXERCISE ? value : null;
 }
 
+function groupFormOpen() {
+  return !$('new-group').hidden || !$('edit-group').hidden;
+}
+
 $('group').addEventListener('change', (event) => {
+  const value = event.target.value;
   showMessage('');
-  if (event.target.value !== NEW_GROUP) {
-    chooseGroup(event.target.value);
-    return;
+  if (value === NEW_GROUP) {
+    openGroupForm('new-group');
+  } else if (value === EDIT_GROUP) {
+    $('edit-group-name').value = group;
+    disarmDeleteGroup();
+    openGroupForm('edit-group');
+  } else {
+    chooseGroup(value);
   }
-  $('group-field').hidden = true;
-  $('exercise-field').hidden = true;
-  $('new-exercise').hidden = true;
-  $('new-group').hidden = false;
-  $('new-group-name').focus();
 });
 
 $('new-group').addEventListener('submit', (event) => {
@@ -256,6 +303,9 @@ $('exercise').addEventListener('change', (event) => {
   if (value === NEW_EXERCISE) {
     $('exercise-field').hidden = true;
     $('new-exercise').hidden = false;
+    // The shown weight and last time were for the previous exercise.
+    fillWeightFor(null);
+    renderLast(null);
     $('new-exercise-name').focus();
     return;
   }
@@ -272,7 +322,7 @@ $('new-exercise').addEventListener('submit', (event) => {
   }
   $('new-exercise-name').blur();
   showMessage('');
-  renderStart({ fillWeight: true });
+  renderStart({ fillWeight: false });
 });
 
 $('new-exercise-cancel').addEventListener('click', () => {
@@ -281,12 +331,34 @@ $('new-exercise-cancel').addEventListener('click', () => {
   renderStart({ fillWeight: false });
 });
 
-$('remove-group').addEventListener('click', () => {
-  store.removeGroup(group);
-  $('new-exercise-name').value = '';
+$('edit-group').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const typed = $('edit-group-name').value;
+  const name = store.renameGroup(group, typed);
+  if (!name) {
+    showMessage(typed.trim() ? 'There is already a group with that name.' : 'Type a name for the group.');
+    return;
+  }
+  $('edit-group-name').blur();
   showMessage('');
-  renderStart({ fillWeight: true });
+  renderStart({ fillWeight: false });
 });
+
+$('edit-group-cancel').addEventListener('click', () => {
+  showMessage('');
+  renderStart({ fillWeight: false });
+});
+
+const disarmDeleteGroup = confirmTap(
+  $('delete-group'),
+  () => 'Tap again to delete',
+  () => {
+    const name = group;
+    store.deleteGroup(name);
+    renderStart({ fillWeight: false });
+    showMessage(`Deleted ${name}. Its exercises are still in All exercises.`);
+  },
+);
 
 $('weight').addEventListener('focus', (event) => event.target.select());
 $('weight').addEventListener('keydown', (event) => {
@@ -300,7 +372,7 @@ $('open-history').addEventListener('click', () => openHistory(store.lastExercise
 $('start-button').addEventListener('click', () => {
   const exercise = currentExercise();
   if (!exercise) {
-    showMessage($('new-group').hidden ? 'Add an exercise first.' : 'Add the group first, or tap Cancel.');
+    showMessage(groupFormOpen() ? 'Finish the group first, or tap Cancel.' : 'Add an exercise first.');
     return;
   }
   const weightKg = parseWeight($('weight').value);
@@ -371,8 +443,16 @@ function finish() {
 $('done-button').addEventListener('pointerdown', finish);
 $('done-button').addEventListener('click', finish);
 
+// Back in the app. Callouts queued before it went to the background would play late, so the
+// rest of the set is scheduled again from "0"; ticks drawn yesterday are redrawn.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && run) voice.resume();
+  if (document.visibilityState !== 'visible') return;
+  if (run) {
+    voice.resume();
+    voice.start(events(last), run.zeroAt);
+  } else if (screen === 'start' && tickedDay !== dayKey(new Date())) {
+    renderStart({ fillWeight: false });
+  }
 });
 
 // Result
@@ -466,7 +546,9 @@ function renderHistory() {
     }),
   );
   $('history-empty').hidden = sets.length > 0;
-  $('remove-exercise').hidden = !historyExercise || sets.length > 0;
+  $('exercise-actions').hidden = !historyExercise;
+  $('rename-form').hidden = true;
+  disarmDeleteExercise();
 }
 
 // A checkbox that puts the shown exercise in a group or takes it out.
@@ -501,23 +583,15 @@ function historyEntry(set) {
   remove.className = 'delete';
   remove.textContent = '✕';
   remove.setAttribute('aria-label', 'Delete set');
-  let disarm = 0;
-  // First tap arms the button, a second tap within 3 s deletes.
-  remove.addEventListener('click', () => {
-    if (!remove.classList.contains('armed')) {
-      remove.classList.add('armed');
-      remove.textContent = 'Delete';
-      disarm = setTimeout(() => {
-        remove.classList.remove('armed');
-        remove.textContent = '✕';
-      }, 3000);
-      return;
-    }
-    clearTimeout(disarm);
-    store.deleteSet(set.id);
-    if (savedSet?.id === set.id) savedSet = null;
-    renderHistory();
-  });
+  confirmTap(
+    remove,
+    () => 'Delete',
+    () => {
+      store.deleteSet(set.id);
+      if (savedSet?.id === set.id) savedSet = null;
+      renderHistory();
+    },
+  );
   item.append(when, weight, seconds, remove);
   return item;
 }
@@ -527,11 +601,46 @@ $('history-exercise').addEventListener('change', (event) => {
   renderHistory();
 });
 
-$('remove-exercise').addEventListener('click', () => {
-  store.removeExercise(historyExercise);
-  historyExercise = store.exercises[0] ?? null;
+$('rename-exercise').addEventListener('click', () => {
+  $('rename-exercise-name').value = historyExercise;
+  $('rename-message').textContent = '';
+  $('exercise-actions').hidden = true;
+  $('rename-form').hidden = false;
+  $('rename-exercise-name').focus();
+});
+
+// The sets keep their objects, so savedSet follows the new name too.
+$('rename-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const typed = $('rename-exercise-name').value;
+  const name = store.renameExercise(historyExercise, typed);
+  if (!name) {
+    $('rename-message').textContent = typed.trim()
+      ? 'There is already an exercise with that name.'
+      : 'Type a name for the exercise.';
+    return;
+  }
+  $('rename-exercise-name').blur();
+  if (weightExercise === historyExercise) weightExercise = name;
+  historyExercise = name;
   renderHistory();
 });
+
+$('rename-cancel').addEventListener('click', renderHistory);
+
+const disarmDeleteExercise = confirmTap(
+  $('delete-exercise'),
+  () => {
+    const count = store.setsFor(historyExercise).length;
+    return count === 0 ? 'Tap again to delete' : `Tap again to delete it and ${count === 1 ? '1 set' : `${count} sets`}`;
+  },
+  () => {
+    store.deleteExercise(historyExercise);
+    if (savedSet?.exercise === historyExercise) savedSet = null;
+    historyExercise = store.exercises[0] ?? null;
+    renderHistory();
+  },
+);
 
 $('history-back').addEventListener('click', () => {
   renderStart({ fillWeight: false });

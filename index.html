@@ -41,6 +41,18 @@
           <button id="new-group-cancel" class="text-button" type="button">Cancel</button>
         </form>
 
+        <form id="edit-group" class="field new-item" hidden>
+          <label for="edit-group-name">Group name</label>
+          <div class="inline">
+            <input id="edit-group-name" type="text" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" />
+            <button class="small-button" type="submit">Save</button>
+          </div>
+          <div class="actions">
+            <button id="edit-group-cancel" class="text-button" type="button">Cancel</button>
+            <button id="delete-group" class="text-button" type="button">Delete group</button>
+          </div>
+        </form>
+
         <div class="field" id="exercise-field">
           <label for="exercise">Exercise</label>
           <select id="exercise"></select>
@@ -52,10 +64,7 @@
             <input id="new-exercise-name" type="text" placeholder="Leg press" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" />
             <button class="small-button" type="submit">Add</button>
           </div>
-          <div class="actions">
-            <button id="new-exercise-cancel" class="text-button" type="button">Cancel</button>
-            <button id="remove-group" class="text-button" type="button">Remove this group</button>
-          </div>
+          <button id="new-exercise-cancel" class="text-button" type="button">Cancel</button>
         </form>
 
         <div class="field">
@@ -125,7 +134,19 @@
         <legend>Groups</legend>
         <div id="history-group-list" class="checks"></div>
       </fieldset>
-      <button id="remove-exercise" class="secondary-button" type="button" hidden>Remove this exercise</button>
+      <div id="exercise-actions" class="exercise-actions" hidden>
+        <button id="rename-exercise" class="secondary-button" type="button">Rename this exercise</button>
+        <button id="delete-exercise" class="secondary-button" type="button">Delete this exercise</button>
+      </div>
+      <form id="rename-form" class="field new-item" hidden>
+        <label for="rename-exercise-name">Exercise name</label>
+        <div class="inline">
+          <input id="rename-exercise-name" type="text" autocomplete="off" autocapitalize="sentences" enterkeyhint="done" />
+          <button class="small-button" type="submit">Save</button>
+        </div>
+        <p id="rename-message" class="message" role="status"></p>
+        <button id="rename-cancel" class="text-button" type="button">Cancel</button>
+      </form>
       <div class="backup">
         <p class="backup-title">Backup</p>
         <div class="row">

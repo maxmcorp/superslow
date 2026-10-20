@@ -22,14 +22,57 @@ function isSet(s) {
     s &&
     typeof s.id === 'string' &&
     typeof s.exercise === 'string' &&
+    tidy(s.exercise) !== '' &&
     Number.isFinite(s.seconds) &&
-    (s.weightKg === null || Number.isFinite(s.weightKg)) &&
-    typeof s.at === 'string'
+    s.seconds >= 0 &&
+    (s.weightKg === null || (Number.isFinite(s.weightKg) && s.weightKg >= 0)) &&
+    typeof s.at === 'string' &&
+    Number.isFinite(Date.parse(s.at))
   );
 }
 
 function isGroup(g) {
   return g && typeof g.name === 'string' && tidy(g.name) !== '' && Array.isArray(g.exercises);
+}
+
+// A filter that lets each key through the first time only.
+function firstTime() {
+  const seen = new Set();
+  return (key) => {
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  };
+}
+
+// Saved data that would break the app is dropped, and repeats are read once: only this app
+// writes it, but a restore by an older version could have stored a set with a bad date or a
+// repeated id, or an exercise twice. `dropped` tells if anything was.
+function clean(saved) {
+  let dropped = false;
+  // A list that is missing (an older log) is empty; one that is something else is dropped.
+  const keep = (list, ok) => {
+    if (list !== undefined && !Array.isArray(list)) dropped = true;
+    const all = Array.isArray(list) ? list : [];
+    const kept = all.filter(ok);
+    if (kept.length !== all.length) dropped = true;
+    return kept;
+  };
+  const newExercise = firstTime();
+  const exercises = keep(saved.exercises, (e) => typeof e === 'string' && tidy(e) !== '' && newExercise(e));
+  const newGroup = firstTime();
+  const newSetId = firstTime();
+  const data = {
+    exercises,
+    groups: keep(saved.groups, (g) => isGroup(g) && newGroup(g.name.toLocaleLowerCase())).map((g) => {
+      const newMember = firstTime();
+      return { name: g.name, exercises: keep(g.exercises, (e) => exercises.includes(e) && newMember(e)) };
+    }),
+    sets: keep(saved.sets, (s) => isSet(s) && newSetId(s.id)),
+    lastExercise: typeof saved.lastExercise === 'string' ? saved.lastExercise : null,
+    lastGroup: typeof saved.lastGroup === 'string' ? saved.lastGroup : null,
+  };
+  return { data, dropped };
 }
 
 function newestFirst(a, b) {
@@ -48,16 +91,26 @@ function csvField(value) {
 export function createStore(storage, key = KEY) {
   let data = read();
 
+  // Unreadable data starts a fresh log rather than breaking the app. Whenever anything saved
+  // can't be used, the original text is kept aside, so the next write doesn't destroy the only copy.
   function read() {
+    const raw = storage.getItem(key);
+    let saved = null;
     try {
-      const saved = JSON.parse(storage.getItem(key));
-      if (saved && Array.isArray(saved.exercises) && Array.isArray(saved.sets)) {
-        return { ...empty(), ...saved };
-      }
+      saved = JSON.parse(raw);
     } catch {
-      // Unreadable data starts a fresh log rather than breaking the app.
+      // Handled below.
     }
-    return empty();
+    const readable = saved && Array.isArray(saved.exercises) && Array.isArray(saved.sets);
+    const { data, dropped } = readable ? clean(saved) : { data: empty(), dropped: Boolean(raw) };
+    if (dropped) {
+      try {
+        storage.setItem(`${key}.unreadable`, raw);
+      } catch {
+        // No room for the copy.
+      }
+    }
+    return data;
   }
 
   function write() {
@@ -102,10 +155,27 @@ export function createStore(storage, key = KEY) {
       return clean;
     },
 
-    // Only an exercise without sets can be removed, so no history is lost.
-    removeExercise(name) {
-      if (data.sets.some((s) => s.exercise === name)) return false;
+    // Renames an exercise in its sets and groups too. Returns the new name, or null if it is
+    // blank or another exercise has it.
+    renameExercise(name, newName) {
+      const clean = tidy(newName);
+      if (!data.exercises.includes(name) || !clean) return null;
+      const other = findExercise(clean);
+      if (other && other !== name) return null;
+      const rename = (e) => (e === name ? clean : e);
+      data.exercises = data.exercises.map(rename);
+      for (const s of data.sets) s.exercise = rename(s.exercise);
+      for (const g of data.groups) g.exercises = g.exercises.map(rename);
+      data.lastExercise = rename(data.lastExercise);
+      write();
+      return clean;
+    },
+
+    // Deletes an exercise and all its sets.
+    deleteExercise(name) {
+      if (!data.exercises.includes(name)) return false;
       data.exercises = data.exercises.filter((e) => e !== name);
+      data.sets = data.sets.filter((s) => s.exercise !== name);
       for (const g of data.groups) g.exercises = g.exercises.filter((e) => e !== name);
       if (data.lastExercise === name) data.lastExercise = null;
       write();
@@ -127,11 +197,25 @@ export function createStore(storage, key = KEY) {
       return clean;
     },
 
-    // Only an empty group can be removed.
-    removeGroup(name) {
+    // Returns the new name, or null if it is blank or another group has it.
+    renameGroup(name, newName) {
       const group = findGroupNamed(name);
-      if (!group || group.exercises.length) return false;
+      const clean = tidy(newName);
+      if (!group || !clean) return null;
+      const other = findGroup(clean);
+      if (other && other !== group) return null;
+      group.name = clean;
+      if (data.lastGroup === name) data.lastGroup = clean;
+      write();
+      return clean;
+    },
+
+    // The group's exercises and their sets stay.
+    deleteGroup(name) {
+      const group = findGroupNamed(name);
+      if (!group) return false;
       data.groups = data.groups.filter((g) => g !== group);
+      if (data.lastGroup === name) data.lastGroup = null;
       write();
       return true;
     },
@@ -221,7 +305,9 @@ export function createStore(storage, key = KEY) {
     },
 
     // Merges a backup into the log: sets already present (same id) are kept as they are, and
-    // groups get the backup's exercises added to their own. Throws if the text is not a Superslow backup.
+    // groups get the backup's exercises added to their own. Names are matched the way typed
+    // names are, and sets that don't make sense are skipped. Throws if the text is not a
+    // Superslow backup.
     importJSON(text) {
       let backup;
       try {
@@ -233,22 +319,34 @@ export function createStore(storage, key = KEY) {
         throw new Error('not-a-backup');
       }
       const known = new Set(data.sets.map((s) => s.id));
-      const fresh = backup.sets.filter((s) => isSet(s) && !known.has(s.id));
+      const fresh = backup.sets.filter((s) => {
+        if (!isSet(s) || known.has(s.id)) return false;
+        known.add(s.id);
+        return true;
+      });
       const groups = Array.isArray(backup.groups) ? backup.groups.filter(isGroup) : [];
-      const names = [...(backup.exercises ?? []), ...groups.flatMap((g) => g.exercises), ...fresh.map((s) => s.exercise)];
+      const exercises = Array.isArray(backup.exercises) ? backup.exercises : [];
+      const names = [...exercises, ...groups.flatMap((g) => g.exercises), ...fresh.map((s) => s.exercise)];
       for (const name of names) {
-        if (typeof name === 'string' && name.trim() && !findExercise(name)) data.exercises.push(name.trim());
+        const clean = typeof name === 'string' ? tidy(name) : '';
+        if (clean && !findExercise(clean)) data.exercises.push(clean);
       }
       for (const group of groups) {
         const name = tidy(group.name);
         const mine = findGroup(name) ?? { name, exercises: [] };
         if (!data.groups.includes(mine)) data.groups.push(mine);
         for (const exercise of group.exercises) {
-          const known = typeof exercise === 'string' && findExercise(exercise);
-          if (known && !mine.exercises.includes(known)) mine.exercises.push(known);
+          const found = typeof exercise === 'string' && findExercise(tidy(exercise));
+          if (found && !mine.exercises.includes(found)) mine.exercises.push(found);
         }
       }
-      data.sets.push(...fresh.map((s) => ({ ...s, exercise: findExercise(s.exercise) })));
+      data.sets.push(
+        ...fresh.map((s) => ({
+          ...s,
+          exercise: findExercise(tidy(s.exercise)),
+          at: new Date(s.at).toISOString(),
+        })),
+      );
       write();
       return { added: fresh.length };
     },

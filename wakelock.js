@@ -25,7 +25,11 @@ export function createWakeLock(onChange) {
       }
       sentinel = lock;
       lock.addEventListener('release', () => {
-        if (sentinel === lock) sentinel = null;
+        if (sentinel !== lock) return;
+        sentinel = null;
+        // Taken back by the system while still wanted on screen: ask again, which reports
+        // the loss if it fails. Going to the background is handled on the way back.
+        if (wanted && document.visibilityState === 'visible') request();
       });
       onChange(true);
     } catch {

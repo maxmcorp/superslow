@@ -115,6 +115,12 @@ input {
   letter-spacing: 0.01em;
 }
 
+.bar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .history .bar {
   justify-content: flex-start;
   gap: 20px;
@@ -175,6 +181,18 @@ input {
   background: none;
   color: var(--chalk-dim);
   font-weight: 600;
+  cursor: pointer;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--chalk-dim);
   cursor: pointer;
 }
 
@@ -661,6 +679,56 @@ body[data-verdict='light'] .result {
 
 .backup .row > * {
   flex: 1 1 auto;
+}
+
+/* Share: the app's QR code over the whole screen, black on white for a camera to read. */
+
+.share {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: calc(env(safe-area-inset-top) + 24px) calc(env(safe-area-inset-right) + var(--gutter))
+    calc(env(safe-area-inset-bottom) + var(--gutter)) calc(env(safe-area-inset-left) + var(--gutter));
+  border: 0;
+  background: var(--floor);
+  color: var(--chalk);
+}
+
+.share[open] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.share-title {
+  margin: 0;
+  font: 600 min(34px, 9vw) / 1.1 var(--display);
+}
+
+.qr {
+  width: min(100%, 360px, 55vh);
+  aspect-ratio: 1;
+  border-radius: 12px;
+}
+
+.share-url {
+  color: var(--chalk-dim);
+  font-size: min(19px, 5.2vw);
+  overflow-wrap: anywhere;
+}
+
+.share .note {
+  margin: 0;
+}
+
+.share .secondary-button {
+  min-width: 160px;
+  margin-top: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {

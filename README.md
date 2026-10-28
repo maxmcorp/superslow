@@ -11,6 +11,7 @@ under 60 s the weight is too heavy, over 90 s it is too light.
 - The screen stays on during the countdown and the set.
 - Tap anywhere on the big **Done** slab when you finish. The set is saved with its weight, time and verdict.
 - **History** shows each exercise's sets by day and the groups it is in, which you can change there. You can also rename an exercise there, or delete it with its sets. You can export the sets as CSV, or back up and restore them as JSON.
+- The QR icon at the top shows the app's code full screen, for a friend to scan with their phone's camera.
 
 ## Install
 
@@ -65,6 +66,6 @@ npm run serve          # http://localhost:8000; no service worker on http, so ed
 | `sw.js` | Offline cache |
 | `tools/build.mjs` | Run before each deploy |
 | `tools/make-icons.py` | Draws the app icons |
-| `tools/make-qr.py` | Writes `qr.png` for the app's address |
+| `tools/make-qr.py` | Writes the QR code for the app's address: `qr.png` for this README, `qr.svg` for the app |
 
 Fonts: Barlow and Barlow Condensed by Jeremy Tribby, under the SIL Open Font License (`fonts/OFL.txt`).

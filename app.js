@@ -367,6 +367,10 @@ $('weight').addEventListener('keydown', (event) => {
 
 $('open-history').addEventListener('click', () => openHistory(store.lastExercise));
 
+// The app's QR code, for someone else to scan. A tap anywhere on it closes it, Close included.
+$('open-share').addEventListener('click', () => $('share').showModal());
+$('share').addEventListener('click', () => $('share').close());
+
 // Countdown and set
 
 $('start-button').addEventListener('click', () => {
